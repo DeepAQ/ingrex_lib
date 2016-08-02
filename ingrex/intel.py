@@ -5,7 +5,7 @@ import json
 
 class Intel(object):
     "main class with all Intel functions"
-    def __init__(self, cookies, field):
+    def __init__(self, cookies, field, proxies=None):
         token = re.findall(r'csrftoken=(\w*);', cookies)[0]
         self.headers = {
             'accept-encoding' :'gzip, deflate',
@@ -13,7 +13,7 @@ class Intel(object):
             'cookie': cookies,
             'origin': 'https://www.ingress.com',
             'referer': 'https://www.ingress.com/intel',
-            'user-agent': 'Mozilla/5.0 (MSIE 9.0; Windows NT 6.1; Trident/5.0)',
+            'user-agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36',
             'x-csrftoken': token,
         }
         self.field = {
@@ -26,17 +26,19 @@ class Intel(object):
             'latE6': (field['maxLatE6'] + field['minLatE6']) >> 1,
             'lngE6': (field['maxLngE6'] + field['minLngE6']) >> 1,
         }
+        self.session = requests.session()
+        self.session.proxies = proxies
         self.refresh_version()
 
     def refresh_version(self):
         "refresh api version for request"
-        request = requests.get('https://www.ingress.com/intel', headers=self.headers)
+        request = self.session.get('https://www.ingress.com/intel', headers=self.headers)
         self.version = re.findall(r'gen_dashboard_(\w*)\.js', request.text)[0]
 
     def fetch(self, url, payload):
         "raw request with auto-retry and connection check function"
         payload['v'] = self.version
-        request = requests.post(url, data=json.dumps(payload), headers=self.headers)
+        request = self.session.post(url, data=json.dumps(payload), headers=self.headers)
         return request.json()['result']
 
     def fetch_msg(self, mints=-1, maxts=-1, reverse=False, tab='all'):
